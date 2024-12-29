@@ -1,0 +1,90 @@
+name: 'Embedded Postgres'
+description: 'From zero to testing with embedded postgres in nearly no time, literally.'
+inputs:
+  version:
+    description: 'The version of the embedded postgres to install.'
+    required: true
+    default: '17.2.0'
+  arch:
+    description: 'The architecture of the embedded postgres to install.'
+    required: true
+    default: 'amd64'
+  os:
+    description: 'The operating system of the embedded postgres to install.'
+    required: true
+    default: 'linux'
+  PGHOST:
+    required: true
+    default: '/tmp'
+  PGPORT:
+    required: true
+    default: '5432'
+  PGUSER:
+    required: true
+    default: 'postgres'
+  PGPASSWORD:
+    required: true
+    default: 'postgres'
+  PGDATABASE:
+    required: true
+    default: 'postgres'
+  PGSSLMODE:
+    required: true
+    default: 'disable'
+outputs:
+  dsn:
+    description: 'The DSN form of the DATABASE_URL.'
+runs:
+  using: composite
+  steps:
+    - name: Install Postgres
+      shell: bash
+      run: |
+        # Install Postgres
+        #
+        # version is the version of the embedded postgres to install.
+        # The format must be in <major>.<minor>.<patch> format.
+        set -ueo pipefail
+
+        mkdir -p $HOME/.local/postgres
+        cd $HOME/.local/postgres
+
+        # Download the embedded postgres binaries
+        url="https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-$os-$arch/$version/embedded-postgres-binaries-linux-amd64-$version.jar"
+        curl -s -o /tmp/pg.jar -L $url
+        unzip -p /tmp/pg.jar postgres-linux-x86_64.txz | xz -d | tar xvf - 1>/dev/null
+
+        export PATH=$PWD/bin:$PATH
+        echo "PATH=$PATH" >> $GITHUB_ENV
+
+        echo "Postgres $version added to PATH ($PWD/bin/postgres)"
+
+        # Custom Envs
+        #
+        # NOTE: DATABASE_URL is set using the DSN form so that, which allows
+        # for modification via appending, which the URL form does not. This enables
+        # the user to add additional parameters to the DSN as needed.
+        export PGDATA=${PGDATA:-$HOME/.local/share/postgres/data}
+        export PGHOST=${PGHOST:-/tmp}
+        export PGPORT=${PGPORT:-5432}
+        export PGUSER=${PGUSER:-postgres}
+        export PGPASSWORD=${PGPASSWORD:-postgres}
+        export PGDATABASE=${PGDATABASE:-postgres}
+        export PGSSLMODE=${PGSSLMODE:-disable}
+        env | grep '^PG' >> $GITHUB_ENV
+
+        DSN="dbname=$PGDATABASE user=$PGUSER password=$PGPASSWORD host=$PGHOST port=$PGPORT sslmode=$PGSSLMODE"
+        echo "DATABASE_URL=$DSN" >> $GITHUB_ENV
+        echo "url=$DSN" >> $GITHUB_OUTPUT
+
+        initdb -U $PGUSER -D $PGDATA
+        pg_ctl -D $PGDATA -l $PGDATA/postgres.log start
+      env:
+        version: ${{ inputs.version }}
+        os: ${{ inputs.os }}
+        arch: ${{ inputs.arch }}
+        user: ${{ inputs.user }}
+        password: ${{ inputs.password }}
+        host: ${{ inputs.host }}
+        port: ${{ inputs.port }}
+        sslmode: ${{ inputs.sslmode }}

@@ -1,0 +1,45 @@
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test action.yml
+        id: postgres
+        uses: ./
+      - name: test
+        env:
+          DSN: ${{ steps.postgres.outputs.dsn }}
+        run: |
+          set -ueo pipefail
+          set -x
+
+          got=$(postgres --version)
+          want="postgres (PostgreSQL) 17.2"
+          if [ "$got" != "$want" ]; then
+            echo "unexpected postgres version: got $got, want $want"
+            exit 1
+          fi
+
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL is not set"
+            exit 1
+          fi
+
+          # Check these vars are set
+          vars="PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE PGSSLMODE"
+          for v in $vars; do
+            if [ -z "${!v}" ]; then
+              echo "expected $v to be set"
+              exit 1
+            fi
+          done
+
+          if [ "$DATABASE_URL" = "$DSN" ]; then
+            echo "postgres.url = $DATABASE_URL; want = $OUT_DATABASE_URL"
+            exit 1
+          fi
+
+          # Check the database is up
+          psql -c 'SELECT 1' "$DATABASE_URL"
