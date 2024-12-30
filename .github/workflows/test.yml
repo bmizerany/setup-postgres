@@ -2,6 +2,23 @@ on: [push, pull_request]
 
 jobs:
   test:
+    strategy:
+      matrix:
+        # Smoke test some os/arch combinations
+        os:
+          - ubuntu-22.04
+          - macOS-13
+          - macOS-14-xlarge # arm64
+          - macOS-14
+          - macOS-15
+          - windows-2019
+          - windows-2022
+          - windows-2025
+
+        # Smoke test some postgres versions
+        version:
+          - 17.2.0
+          - 16.4.0
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4

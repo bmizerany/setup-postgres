@@ -5,86 +5,184 @@ inputs:
     description: 'The version of the embedded postgres to install.'
     required: true
     default: '17.2.0'
-  arch:
-    description: 'The architecture of the embedded postgres to install.'
-    required: true
-    default: 'amd64'
-  os:
-    description: 'The operating system of the embedded postgres to install.'
-    required: true
-    default: 'linux'
-  PGHOST:
-    required: true
-    default: '/tmp'
-  PGPORT:
-    required: true
-    default: '5432'
-  PGUSER:
-    required: true
-    default: 'postgres'
-  PGPASSWORD:
-    required: true
-    default: 'postgres'
-  PGDATABASE:
-    required: true
-    default: 'postgres'
-  PGSSLMODE:
-    required: true
-    default: 'disable'
 outputs:
   dsn:
-    description: 'The DSN form of the DATABASE_URL.'
+    description: 'The DSN for connecting to the embedded postgres (e.g. psql "$DSN").'
+  data:
+    description: 'The path to the data directory of the embedded postgres.'
 runs:
   using: composite
   steps:
     - name: Install Postgres
       shell: bash
+      env:
+        version: ${{ inputs.version }}
+        os: ${{ runner.os }}
+        arch: ${{ runner.arch }}
       run: |
+        #!/bin/bash
+
         # Install Postgres
         #
         # version is the version of the embedded postgres to install.
         # The format must be in <major>.<minor>.<patch> format.
         set -ueo pipefail
 
-        mkdir -p $HOME/.local/postgres
-        cd $HOME/.local/postgres
+        main() {
+          # Step 1: Validate and coearse the following version, or, and arch into
+          # their equivalent in the embedded postgres binaries file names.
+          #
+          # The os is taken from the runner.os context.
+          # From the docs:
+          # 
+          #     https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/accessing-contextual-information-about-workflow-runs
+          #
+          #     runner.os
+          #         The operating system of the runner executing the job.
+          #         Possible values are Linux, Windows, or macOS.
+          #
+          #     runner.arch
+          #         The architecture of the runner executing the job. Possible
+          #         values are X86, X64, ARM, or ARM64.
+          #
+          #
+          # The matrix is:
+          #
+          #     # Darwin (macOS) binaries:
+          #     embedded-postgres-binaries-darwin-amd64/         macOS    X64
+          #     embedded-postgres-binaries-darwin-arm64v8/       macOS    ARM64
+          #     
+          #     # Linux binaries:
+          #     embedded-postgres-binaries-linux-amd64/          Linux    X64
+          #     embedded-postgres-binaries-linux-amd64-alpine/   Linux    X64
+          #     embedded-postgres-binaries-linux-arm32v6/        Linux    ARM
+          #     embedded-postgres-binaries-linux-arm32v7/        Linux    ARM
+          #     embedded-postgres-binaries-linux-arm64v8/        Linux    ARM64
+          #     embedded-postgres-binaries-linux-i386/           Linux    X86
+          #     embedded-postgres-binaries-linux-ppc64le/        Linux    -      (PPC64LE not supported in Actions)
+          #     
+          #     # Windows binaries:
+          #     embedded-postgres-binaries-windows-amd64/        Windows  X64
+          #     embedded-postgres-binaries-windows-i386/         Windows  X86
+          #
+          case $os in
+            macOS)
+              os=darwin
+              case $arch in
+                X64)
+                  arch=amd64
+                  ;;
+                ARM64)
+                  arch=arm64v8
+                  ;;
+                *)
+                  echo "Unsupported $os arch: $arch"
+                  echo "Only X64 and ARM64 are supported on macOS."
+                  ;;
+              esac
+              ;;
+            Linux)
+              os=linux
+              case $arch in
+                X64)
+                  arch=amd64
+                  ;;
+                ARM)
+                  arch=arm32v6
+                  ;;
+                ARM64)
+                  arch=arm64v8
+                  ;;
+                X86)
+                  arch=i386
+                  ;;
+                *)
+                  echo "Unsupported $os arch: $arch"
+                  echo "Only X64, ARM, ARM64, and X86 are supported on Linux."
+                  exit 1
+                  ;;
+              esac
+              ;;
+            Windows)
+              os=windows
+              case $arch in
+                X64)
+                  arch=amd64
+                  ;;
+                X86)
+                  arch=i386
+                  ;;
+                *)
+                  echo "Unsupported arch: $arch"
+                  echo "Only X64 and X86 are supported on Windows."
+                  exit 1
+                  ;;
+              esac
+              ;;
+            *)
+              echo "Unsupported OS: $os"
+              echo "Only Linux, Windows, and macOS are supported."
+              exit 1
+              ;;
+          esac
 
-        # Download the embedded postgres binaries
-        url="https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-$os-$arch/$version/embedded-postgres-binaries-linux-amd64-$version.jar"
-        curl -s -o /tmp/pg.jar -L $url
-        unzip -p /tmp/pg.jar postgres-linux-x86_64.txz | xz -d | tar xvf - 1>/dev/null
+          cd "$HOME"/.local
 
-        export PATH=$PWD/bin:$PATH
-        echo "PATH=$PATH" >> $GITHUB_ENV
+          url="https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-$os-$arch/$version/embedded-postgres-binaries-$os-$arch-$version.jar"
+          
+          echo "Downloading Postgres:"
+          echo
+          echo "    Version: $version"
+          echo "    OS:      $os"
+          echo "    Arch:    $arch"
+          echo "    URL:     $url"
 
-        echo "Postgres $version added to PATH ($PWD/bin/postgres)"
+          # Download the embedded postgres binaries
+          curl -s -o /tmp/pg.jar -L "$url"
+          if [ ! -f /tmp/pg.jar ]; then
+            echo "Failed to find embedded postgres binaries for version $version on $os-$arch."
+            echo "Please find the right os, arch, and version here https://repo1.maven.org/maven2/io/zonky/test/postgres/"
+            echo "and update your step's version, os, and arch inputs accordingly."
+            exit 1
+          fi
 
-        # Custom Envs
-        #
-        # NOTE: DATABASE_URL is set using the DSN form so that, which allows
-        # for modification via appending, which the URL form does not. This enables
-        # the user to add additional parameters to the DSN as needed.
-        export PGDATA=${PGDATA:-$HOME/.local/share/postgres/data}
-        export PGHOST=${PGHOST:-/tmp}
-        export PGPORT=${PGPORT:-5432}
-        export PGUSER=${PGUSER:-postgres}
-        export PGPASSWORD=${PGPASSWORD:-postgres}
-        export PGDATABASE=${PGDATABASE:-postgres}
-        export PGSSLMODE=${PGSSLMODE:-disable}
-        env | grep '^PG' >> $GITHUB_ENV
+          # Extract the embedded postgres binaries
+          unzip -p /tmp/pg.jar "postgres-$os-*.txz" | xz -d | tar xvf - 1>/dev/null
 
-        DSN="dbname=$PGDATABASE user=$PGUSER password=$PGPASSWORD host=$PGHOST port=$PGPORT sslmode=$PGSSLMODE"
-        echo "DATABASE_URL=$DSN" >> $GITHUB_ENV
-        echo "url=$DSN" >> $GITHUB_OUTPUT
+          export PATH=$PWD/bin:$PATH
+          echo "PATH=$PATH" >> $GITHUB_ENV
 
-        initdb -U $PGUSER -D $PGDATA
-        pg_ctl -D $PGDATA -l $PGDATA/postgres.log start
-      env:
-        version: ${{ inputs.version }}
-        os: ${{ inputs.os }}
-        arch: ${{ inputs.arch }}
-        user: ${{ inputs.user }}
-        password: ${{ inputs.password }}
-        host: ${{ inputs.host }}
-        port: ${{ inputs.port }}
-        sslmode: ${{ inputs.sslmode }}
+          echo "Postgres $version added to PATH ($PWD/bin/postgres)"
+
+          # Custom Envs
+          #
+          # NOTE: DATABASE_URL is set using the DSN form so that, which allows
+          # for modification via appending, which the URL form does not. This enables
+          # the user to add additional parameters to the DSN as needed.
+          export PGDATA=${PGDATA:-$HOME/.local/share/postgres/data}
+          export PGHOST=${PGHOST:-/tmp}
+          export PGPORT=${PGPORT:-5432}
+          export PGUSER=${PGUSER:-postgres}
+          export PGPASSWORD=${PGPASSWORD:-postgres}
+          export PGDATABASE=${PGDATABASE:-postgres}
+          export PGSSLMODE=${PGSSLMODE:-disable}
+          env | grep '^PG' >> "$GITHUB_ENV"
+
+          DATABASE_URL="dbname=$PGDATABASE user=$PGUSER password=$PGPASSWORD host=$PGHOST port=$PGPORT sslmode=$PGSSLMODE"
+          echo "DATABASE_URL=$DATABASE_URL" >> "$GITHUB_ENV"
+
+          echo "Initializing database at $PGDATA"
+          initdb -D "$PGDATA" -U "$PGUSER"
+
+          echo "Starting Postgres at $PGHOST:$PGPORT"
+          pg_ctl -D "$PGDATA" \
+            -l "$PGDATA"/postgres.log \
+            -o "-d 2 -c shared_buffers=12MB -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c log_line_prefix=\"%d ::LOG::\"" \
+            start
+
+          # Outputs
+          echo "url=$DATABASE_URL" >> "$GITHUB_OUTPUT"
+          echo "data=$PGDATA" >> "$GITHUB_OUTPUT"
+        }
+
+        time main
