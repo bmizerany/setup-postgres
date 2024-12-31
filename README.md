@@ -1,106 +1,100 @@
 # setup-postgres
 
-Fast (really fast), cross-platform, unconfined setup for Postgres in GitHub Actions.
+Lightning-fast Postgres setup for GitHub Actions that just works. Cross-platform, unconfined, and ready for all environments GitHub Actions supports.
 
-Works for all OSs and architectures supported by GitHub Actions!
+<img src="bar.png" alt="Install Times" width="200"/>
 
 # Features
 
-- [x] Binaries installed, in PATH, fast!
-- [x] Starts postgres in fast-mode*, fast!
-- [x] Environment variables setup for use in steps, fast!
+- **Pure Speed**: Binary-based installation that gets you running in seconds
+- **Zero Friction**: No Docker, no package managers - just what you need
+- **Universal**: Works across every OS and architecture GitHub Actions supports
+- **No yaml hassle**: Environment variables pre-configured for immediate use in following steps, without intermediate yaml
 
-No Docker, no non-portable package managers. Just the binaries you need,
-installed and ready to go, fast!
-
-# Usage
+# Get Started
 
 ```yaml
 steps:
-  # ...
   - uses: bmizerany/setup-postgres@v3
-
-  # Run your migrations, tests, etc.
+  
+  # Your steps here
   - run: psql 'SELECT 1'
   - run: go test ./...
   - run: bun test
-  # ...
 ```
 
-That's it!
+That's all it takes. No configuration needed.
 
-## Supported OSs and Architectures
+# Core Features
 
-This action supports all OSs and architectures that GitHub actions supports; at
-the time of writing.
+## Version Support
 
-## Supported Versions
+The default version is `17.2.0`.
 
-A version may be specified in the form of `X.Y.Z` where `X`, `Y`, and `Z` are
-integers. The version must be a valid version of postgres that is available
-from the [embedded postgres project](https://github.com/zonkyio/embedded-postgres).
+Install any Postgres version using standard semantic versioning (`X.Y.Z`). We pull directly from the embedded-postgres project's verified binaries.
 
-A list of supported versions can be found [here](https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-linux-amd64/).
+Browse available versions [here](https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-linux-amd64/).
 
-## Environment variables
+Versions can be specified using the version input:
 
-The action will set the following environment variables for subsequent steps:
+```yaml
+steps:
+  - uses: bmizerany/setup-postgres@v3
+    with:
+        version: 16.4.0
+```
 
-| Name | Description |
-| --- | --- |
-| `PGHOST` | The host to connect to (default: `localhost`) |
-| `PGPORT` | The port to connect to (default: `5432`) |
-| `PGUSER` | The user to connect as (default: `postgres`) |
-| `PGPASSWORD` | The password to connect with (default: `postgres`) |
-| `PGDATABASE` | The database to connect to (default: `postgres`) |
-| `PGDATA` | The data directory for the running postgres instance |
-| `DATABASE_URL` | The DSN that can be used to connect to the database |
+## Environment Configuration
+Your workflow steps automatically get these environment variables:
 
-> NOTE: `DATABASE_URL` is in the DSN form (e.g. `dbname=postgres user=postgres
-> ...`) which is accepted my most Postgres clients, drivers, ORMs, etc. It
-> was chosen over an actual URL because it is more flexible, and easier to
-> override settings by simply appending new settings to the string.
->
-> Users that want a URL can build one like: `postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE`
-
-
-## Inputs
-
-| Name | Description | Default |
+| Variable | Purpose | Default |
 | --- | --- | --- |
-| `version` | The version of postgres to install | `17.2.0` |
+| `PGHOST` | Connection host | `localhost` |
+| `PGPORT` | Connection port | `5432` |
+| `PGUSER` | Username | `postgres` |
+| `PGPASSWORD` | Password | `postgres` |
+| `PGDATABASE` | Target database | `postgres` |
+| `PGDATA` | Data directory | *runtime path* |
+| `DATABASE_URL` | Connection string | DSN format |
 
-## Outputs
+The `DATABASE_URL` uses DSN format for maximum flexibility. For URL format, construct it like this:
+```
+postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE
+```
 
-Outputs are provided for use in configuring other steps in a workflow. It is
-assumed most users will not need them for normal use, and instead can rely on
-the environment variables set by this action.
+## Configuration Options
 
-| Name | Description |
+### Inputs
+| Name | Purpose | Default |
+| --- | --- | --- |
+| `version` | Postgres version | `17.2.0` |
+
+### Outputs
+For advanced workflow configuration:
+
+| Name | Purpose |
 | --- | --- |
-| `dsn` | The DSN that can be used to connect to the database |
-| `data` | The data directory for the running postgres instance |
+| `dsn` | Database connection string |
+| `data` | Postgres data directory |
 
-## Fast-mode
+# Performance Notes
 
-This action runs postgres in "fast-mode" which is a mode that disables `fsync`
-and `full_page_writes`. This is not recommended for production use, but is great
-for CI/CD environments where you want to get up and running quickly, and for
-tests to run lightning fast.
+This action runs Postgres in fast mode, disabling `fsync` and `full_page_writes`. Perfect for CI/CD, not recommended for production. Your tests will fly.
 
-# Credits
+# Acknowledgments
 
-This is possible thanks to the [embedded postgres project](https://github.com/zonkyio/embedded-postgres)
-which provides pre-built binaries for many versions of postgres. Please
-consider supporting them if you find this action useful.
-
-This is obviously most possible because of the hard work of the postgres
-community. Thank you!
+Built on the shoulders of giants:
+- [embedded postgres project](https://github.com/zonkyio/embedded-postgres) for their essential binary distributions
+- The Postgres community for their foundational work
 
 # Contributing
 
-Please open an issue for any feature requests, bugs, or questions. Large PRs
-(e.g. new features) should be discussed in an issue first. Small PRs for bug
-fixes, typos, etc are welcome without an issue.
+We value collaboration:
+- Open issues for features and bugs
+- Discuss major changes before PR
+- Small fixes welcome anytime
+- Be kind, or else
 
-Also, be nice, or else.
+---
+
+*Note: This project thrives because of community support. Consider supporting the embedded postgres project if you find value here.*​​​​​​​​​​​​​​​​

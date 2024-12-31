@@ -1,13 +1,13 @@
-name: 'Embedded Postgres'
-description: 'From zero to testing with embedded postgres in nearly no time, literally.'
+name: 'Install Postgres'
+description: 'The fastest way to install Postgres for your GitHub Actions.'
 inputs:
   version:
-    description: 'The version of the embedded postgres to install.'
+    description: 'The version of postgres to install. Use the format <major>.<minor>.<patch>. All parts are required.'
     required: true
     default: '17.2.0'
 outputs:
   dsn:
-    description: 'The DSN for connecting to the embedded postgres (e.g. psql "$DSN").'
+    description: 'The DSN for connecting to the embedded postgres.'
   data:
     description: 'The path to the data directory of the embedded postgres.'
 runs:

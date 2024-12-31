@@ -1,1 +1,32 @@
-on
+on: [push, pull_request]
+
+jobs:
+  compare-bmizerany-setup-postgres:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: time bmizerany/setup-postgres
+        uses: ./
+        with:
+          version: 16.4.0
+  compare-postgres-container:
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: postgres:16
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4 # Checkout for inclusing in rough overall time comparisons
+      - name: time postgres container
+        run: echo "See output/time from 'Initialize containers' above"
+  compare-apt-setup-postgres:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: apt-get postgres
+        uses: actions/checkout@v4
+        id: postgres
+      - name: time apt-get action
+        uses: ikalnytskyi/action-setup-postgres@v7
+        with:
+          postgres-version: 16
