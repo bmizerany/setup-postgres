@@ -129,6 +129,7 @@ runs:
               ;;
           esac
 
+          mkdir -p "$HOME"/.local
           cd "$HOME"/.local
 
           url="https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-$os-$arch/$version/embedded-postgres-binaries-$os-$arch-$version.jar"
