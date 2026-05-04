@@ -11,7 +11,6 @@ jobs:
           - macOS-14-xlarge # arm64
           - macOS-14
           - macOS-15
-          - windows-2019
           - windows-2022
           - windows-2025
 
