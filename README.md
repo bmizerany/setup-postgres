@@ -15,10 +15,10 @@ Lightning-fast Postgres setup for GitHub Actions that just works. Cross-platform
 
 ```yaml
 steps:
-  - uses: bmizerany/setup-postgres@v3
+  - uses: bmizerany/setup-postgres@v4
   
   # Your steps here
-  - run: psql 'SELECT 1'
+  - run: psql -c 'SELECT 1'
   - run: go test ./...
   - run: bun test
 ```
